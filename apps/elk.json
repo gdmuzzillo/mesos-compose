@@ -1,0 +1,136 @@
+ {
+  "id": "/",
+  "groups": [
+  {
+      "id": "/elk",
+      "apps":[
+            {
+		    "id": "/elk/elasticsearch",	
+			"instances": 1,
+			"cpus": 0.5,
+			"mem": 512,
+			"uris": [],
+			"dependencies": ["/elk/elasticsearchdata"],
+			"container": {
+				"type": "DOCKER",
+				"docker": {
+					"image": "elasticsearch",
+					"privileged": false,
+					"network": "BRIDGE",
+					"parameters": [ { "key": "volumes-from", "value": "elasticsearchdata" } ],
+                  	"portMappings": [{
+                                "containerPort": 9200,
+                                "hostPort": 9200,
+                                "protocol": "tcp"
+                            }]
+						}	
+			}
+		},
+ 		{
+          "id": "/elk/elasticsearchdata",
+          "instances": 1,
+          "cpus": 0.2,
+          "mem": 64,
+		  "uris": [],
+	      "container": {
+                "type": "DOCKER",
+                "docker": {
+                  "image": "busybox",
+                  "network": "BRIDGE",
+                  "privileged": false,
+                  "parameters": [ { "key": "command", "value": "true" }]
+                },
+               "volumes": [{
+                        "containerPath": "/usr/share/elasticsearch/data",
+                        "hostPath": "./data",
+                        "mode": "RW"
+                        }]
+              }
+    },
+      {
+          "id": "/elk/kopf",
+          "instances": 1,
+          "dependencies": ["/elk/elasticsearch"],
+          "cpus": 0.5,
+          "mem": 256,
+		  "uris": [],
+          "env":{ "KOPF_SERVER_NAME":"dockerhost",
+                  "KOPF_SERVER_NAME":"172.17.0.3:9200"
+          	},
+          "container": {
+              "type": "DOCKER",
+	            "docker": {
+    	          "image": "lmenezes/elasticsearch-kopf",
+        	      "network": "BRIDGE",
+            	  "privileged": false,
+             	 "parameters": [],
+			  	 "portMappings": [ {
+                            "containerPort": 80,
+                            "hostPort": 19080,
+                            "protocol": "tcp"
+                        }]              
+            	}
+          }
+  },
+   {
+		  "id": "/elk/logstash",
+	      "uris": [],
+	      "env": { "TZ": "America/Buenos_Aires" },
+	      "cmd": "logstash -f /conf/logstash.conf",
+	      "dependencies": ["/elk/elasticsearch"],
+	      "instances": 1,
+	      "cpus": 1,
+	      "mem": 512,
+	      "container": {
+                "type": "DOCKER",
+                "docker": {
+                  "image": "logstash",
+                  "network": "BRIDGE",
+                  "privileged": false,
+                  "parameters": [{ "key": "link" ,"value": "elasticsearch:db"} ],
+          		  "portMappings": [{
+                                "containerPort": 12201,
+                                "hostPort": 12201,
+                                "protocol": "tcp"
+		                    },
+                            {
+                                "containerPort": 12201,
+                                "hostPort": 12201,
+                                "protocol": "udp"
+                            }]
+                  
+                },
+               "volumes": [
+			            {
+                                "containerPath": "/conf",
+                                "hostPath": "./conf",
+                                "mode": "RW"
+                        }		
+			        ]
+              }
+},
+  {
+      "id": "/elk/kibana",
+      "uris": [],
+      "dependencies": ["/elk/elasticsearch"],
+      "instances": 1,
+      "cpus": 0.1,
+      "mem": 512,
+      "container": {
+      "type": "DOCKER",
+      "docker": {
+          "image": "logstash",
+          "network": "BRIDGE",
+          "privileged": false,
+          "parameters": [],
+	  	  "portMappings": [{
+                        "containerPort": 5601,
+                        "hostPort": 5601,
+                        "protocol": "tcp"
+                    }]          
+        }
+      }
+    }
+   ]
+ }]
+}
